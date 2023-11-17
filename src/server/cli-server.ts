@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import { z } from 'zod';
 import { CLIExecutor } from './cli-executor';
 
+const outputLimit = 3000;
+
 enum RunStatus {
     Success = "success",
     Failure = "failure",
@@ -11,7 +13,7 @@ enum RunStatus {
 // Define the single command result schema separately
 const CommandResultItemSchema = z.object({
     command: z.string().describe("The command that was attempted to be executed."),
-    output: z.string().optional().describe("The combined standard output and standard error output of the executed command."),
+    output: z.string().optional().describe(`The combined standard output and standard error output of the executed command. if the length is more than ${outputLimit} charactesr, it will be trimmed.`),
     runStatus: z.nativeEnum(RunStatus).describe("The status of the command execution: 'success' if the command exited with code 0, 'failure' if it exited with a non-zero code, and 'skipped' if the command was not executed due to a failure in a previous command.")
 });
 
@@ -32,6 +34,7 @@ type Command = z.infer<typeof CommandSchema>;
 type CommandResultItem = z.infer<typeof CommandResultItemSchema>;
 type CommandResult = z.infer<typeof CommandResultSchema>;
 
+
 export class CliServer {
     private app: express.Application;
     private port: number;
@@ -51,8 +54,9 @@ export class CliServer {
         this.app.get('/', (req: Request, res: Response) => {
             res.status(200).send(`<pre>
             Hello!
-            Your public IP is ${this.publicIp},
-            Your finalUrl is ${this.finalUrl}.
+            Your public IP is ${this.publicIp}
+
+            Your finalUrl is ${this.finalUrl}
 
             if you are encountering any issues, open the final URL and give it the public IP
             make sure to give chatgpt you final URL that is displayed here.
@@ -73,6 +77,7 @@ export class CliServer {
         try {
             const commandsResult = CommandSchema.safeParse(req.body);
             if (!commandsResult.success) {
+                console.log(`sending response: Invalid command format`)
                 return res.status(400).json({ error: "Invalid command format" });
             }
 
@@ -90,11 +95,13 @@ export class CliServer {
                 }
 
                 const result = await this.cliExecutor.executeCommand(cmd.command, cmd.workingDir);
-                
+
                 commandResults.push({
                     command: cmd.command,
                     runStatus: result.success ? RunStatus.Success : RunStatus.Failure,
-                    output: result.output
+                    output: result.output.length > outputLimit
+                        ? result.output.substring(0, outputLimit) + `... rest of output trimmed because it is greater than ${outputLimit} characters.`
+                        : result.output
                 });
 
                 if (!result.success) {
@@ -102,8 +109,10 @@ export class CliServer {
                 }
             }
 
+            console.log(`sending response: ${JSON.stringify(commandResults)}`)
             res.json({ results: commandResults });
         } catch (error) {
+            console.log(`sending response: Internal server error`)
             res.status(500).json({ error: "Internal server error" });
         }
     }

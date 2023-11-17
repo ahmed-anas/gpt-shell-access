@@ -11,6 +11,7 @@ async function main() {
     server.listen();
 
     const lt = await localtunnel({ port });
+    
     const url = lt.url;
 
     try {
