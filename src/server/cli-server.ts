@@ -8,18 +8,28 @@ enum RunStatus {
     Skipped = "skipped"
 }
 
-const CommandSchema = z.object({
-    command: z.string().describe("The command to be executed."),
-    workingDir: z.string().optional().default(process.cwd()).describe("The working directory in which the command is executed. Defaults to the current working directory of the application.")
-});
-
-const CommandResultSchema = z.object({
+// Define the single command result schema separately
+const CommandResultItemSchema = z.object({
     command: z.string().describe("The command that was attempted to be executed."),
     output: z.string().optional().describe("The combined standard output and standard error output of the executed command."),
     runStatus: z.nativeEnum(RunStatus).describe("The status of the command execution: 'success' if the command exited with code 0, 'failure' if it exited with a non-zero code, and 'skipped' if the command was not executed due to a failure in a previous command.")
 });
 
+// Now reference CommandResultItemSchema within an array for the CommandResultSchema
+const CommandResultSchema = z.object({
+    results: z.array(CommandResultItemSchema).describe("The array of results for the executed commands.")
+});
+
+const CommandSchema = z.object({
+    commands: z.array(z.object({
+        command: z.string().describe("The command to be executed."),
+        workingDir: z.string().optional().default(process.cwd()).describe("The working directory in which the command is executed. Defaults to the current working directory of the application.")
+    })).describe("The array of commands to be executed.")
+});
+
+// Infer the types from the schemas
 type Command = z.infer<typeof CommandSchema>;
+type CommandResultItem = z.infer<typeof CommandResultItemSchema>;
 type CommandResult = z.infer<typeof CommandResultSchema>;
 
 export class CliServer {
@@ -42,19 +52,18 @@ export class CliServer {
 
         this.app.post('/run-commands', async (req: Request, res: Response) => {
             try {
-                const commandsResult = CommandSchema.array().safeParse(req.body);
+                const commandsResult = CommandSchema.safeParse(req.body);
                 if (!commandsResult.success) {
                     return res.status(400).json({ error: "Invalid command format" });
                 }
 
-                const commands = commandsResult.data;
+                const commands = commandsResult.data.commands;
                 let lastFailure = false;
-                const results: CommandResult[] = [];
+                const commandResults: CommandResultItem[] = [];
 
                 for (const cmd of commands) {
                     if (lastFailure) {
-                        // Placeholder for command execution logic
-                        results.push({
+                        commandResults.push({
                             command: cmd.command,
                             runStatus: RunStatus.Skipped
                         });
@@ -62,8 +71,8 @@ export class CliServer {
                     }
 
                     const result = await this.cliExecutor.executeCommand(cmd.command, cmd.workingDir);
-
-                    results.push({
+                    
+                    commandResults.push({
                         command: cmd.command,
                         runStatus: result.success ? RunStatus.Success : RunStatus.Failure,
                         output: result.output
@@ -74,9 +83,8 @@ export class CliServer {
                     }
                 }
 
-                res.json(CommandResultSchema.array().parse(results));
+                res.json({ results: commandResults });
             } catch (error) {
-                // Here you can handle any unexpected errors that occurred in the async operation
                 res.status(500).json({ error: "Internal server error" });
             }
         });
