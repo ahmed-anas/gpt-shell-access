@@ -25,7 +25,7 @@ const CommandSchema = z.object({
         command: z.string().describe("The command to be executed."),
         workingDir: z.string().optional().default(process.cwd()).describe("The working directory in which the command is executed. Defaults to the current working directory of the application.")
     })).describe("The array of commands to be executed.")
-});
+}).passthrough();
 
 // Infer the types from the schemas
 type Command = z.infer<typeof CommandSchema>;
@@ -51,6 +51,7 @@ export class CliServer {
         })
 
         this.app.post('/run-commands', async (req: Request, res: Response) => {
+            console.log('received request ' + JSON.stringify(req.body));
             try {
                 const commandsResult = CommandSchema.safeParse(req.body);
                 if (!commandsResult.success) {
