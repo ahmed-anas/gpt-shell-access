@@ -1,6 +1,6 @@
 {
   "name": "gpt-shell-access",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "ToDo - fill this",
   "main": "dist/index.js",
   "scripts": {
