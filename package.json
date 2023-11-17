@@ -1,0 +1,44 @@
+{
+  "name": "gpt-shell-access",
+  "version": "1.0.3",
+  "description": "ToDo - fill this",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmed-anas/gpt-shell-access.git"
+  },
+  "bin": {
+    "gpt-shell-access": "./dist/index.js"
+  },
+  "keywords": [
+    "AI",
+    "terminal",
+    "command-line",
+    "cli",
+    "tool",
+    "chatgpt",
+    "llm"
+  ],
+  "author": "Syed Ahmed Anas",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ahmed-anas/gpt-shell-access/issues"
+  },
+  "homepage": "https://github.com/ahmed-anas/gpt-shell-access#readme",
+  "devDependencies": {
+    "@types/shell-quote": "^1.7.2",
+    "ts-node": "^10.9.1",
+    "typescript": "5.2.2"
+  },
+  "dependencies": {
+    "@types/express": "^4.17.21",
+    "express": "^4.18.2",
+    "localtunnel": "^2.0.2",
+    "ngrok": "^5.0.0-beta.2",
+    "shell-quote": "^1.8.1"
+  }
+}
