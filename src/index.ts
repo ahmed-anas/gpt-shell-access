@@ -17,6 +17,8 @@ async function main() {
         const publicIpResponse = await axios.get('https://httpbin.org/ip');
         const publicIp = publicIpResponse.data.origin;
 
+        server.init(url, publicIp);
+
         console.log(`
 ---------------------------------------------------------------
 This is your Public IP, please copy it: ${publicIp}

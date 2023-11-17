@@ -35,6 +35,8 @@ type CommandResult = z.infer<typeof CommandResultSchema>;
 export class CliServer {
     private app: express.Application;
     private port: number;
+    private finalUrl: string = "not yet updated, refresh page and try again"
+    private publicIp: string = "not yet updated, refresh page and try again"
     private cliExecutor = new CLIExecutor();
 
     constructor(port: number) {
@@ -47,48 +49,63 @@ export class CliServer {
         this.app.use(express.json());
 
         this.app.get('/', (req: Request, res: Response) => {
-            res.status(200).send('hello world');
+            res.status(200).send(`<pre>
+            Hello!
+            Your public IP is ${this.publicIp},
+            Your finalUrl is ${this.finalUrl}.
+
+            if you are encountering any issues, open the final URL and give it the public IP
+            make sure to give chatgpt you final URL that is displayed here.
+            `);
         })
 
-        this.app.post('/run-commands', async (req: Request, res: Response) => {
-            console.log('received request ' + JSON.stringify(req.body));
-            try {
-                const commandsResult = CommandSchema.safeParse(req.body);
-                if (!commandsResult.success) {
-                    return res.status(400).json({ error: "Invalid command format" });
-                }
+        this.app.post('/run-commands', (req, res) => this.mainHandler(req, res));
+        this.app.post('/', (req, res) => this.mainHandler(req, res));
+    }
 
-                const commands = commandsResult.data.commands;
-                let lastFailure = false;
-                const commandResults: CommandResultItem[] = [];
+    public init(finalUrl: string, publicIp: string) {
+        this.finalUrl = finalUrl;
+        this.publicIp = publicIp;
+    }
 
-                for (const cmd of commands) {
-                    if (lastFailure) {
-                        commandResults.push({
-                            command: cmd.command,
-                            runStatus: RunStatus.Skipped
-                        });
-                        continue;
-                    }
+    private async mainHandler(req: Request, res: Response) {
+        console.log('received request ' + JSON.stringify(req.body));
+        try {
+            const commandsResult = CommandSchema.safeParse(req.body);
+            if (!commandsResult.success) {
+                return res.status(400).json({ error: "Invalid command format" });
+            }
 
-                    const result = await this.cliExecutor.executeCommand(cmd.command, cmd.workingDir);
-                    
+            const commands = commandsResult.data.commands;
+            let lastFailure = false;
+            const commandResults: CommandResultItem[] = [];
+
+            for (const cmd of commands) {
+                if (lastFailure) {
                     commandResults.push({
                         command: cmd.command,
-                        runStatus: result.success ? RunStatus.Success : RunStatus.Failure,
-                        output: result.output
+                        runStatus: RunStatus.Skipped
                     });
-
-                    if (!result.success) {
-                        lastFailure = true;
-                    }
+                    continue;
                 }
 
-                res.json({ results: commandResults });
-            } catch (error) {
-                res.status(500).json({ error: "Internal server error" });
+                const result = await this.cliExecutor.executeCommand(cmd.command, cmd.workingDir);
+                
+                commandResults.push({
+                    command: cmd.command,
+                    runStatus: result.success ? RunStatus.Success : RunStatus.Failure,
+                    output: result.output
+                });
+
+                if (!result.success) {
+                    lastFailure = true;
+                }
             }
-        });
+
+            res.json({ results: commandResults });
+        } catch (error) {
+            res.status(500).json({ error: "Internal server error" });
+        }
     }
 
     public listen() {
