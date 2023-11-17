@@ -1,24 +1,56 @@
 #!/usr/bin/env node
-import ngrok from 'ngrok';
+import localtunnel from 'localtunnel';
+import axios from 'axios';
 import { CliServer } from "./server/cli-server";
+const opn = require('better-opn');
+import readline from 'readline';
 
 async function main() {
     const port = 3000;
-    const server = new CliServer(port); // Assuming MyServer is the class you created for the server
-    server.listen(); // Start the server
+    const server = new CliServer(port);
+    server.listen();
+
+    const lt = await localtunnel({ port });
+    const url = lt.url;
 
     try {
-        const url = await ngrok.connect({
-            
-        });
+        const publicIpResponse = await axios.get('https://httpbin.org/ip');
+        const publicIp = publicIpResponse.data.origin;
+
         console.log(`
 ---------------------------------------------------------------
-Use this URL and give it to GPT ${url}
+This is your Public IP, please copy it: ${publicIp}
+We will open a the following URL and you will need to paste it there: ${url}
+Press any key to continue...
 ---------------------------------------------------------------
 `);
+
+        await promptKeyPress();
+        opn(url); // Open the browser window
+
+        await new Promise(() => {
+            lt.on('close', (resolve, reject) => {
+                reject(new Error('local tunnel closed'));
+            })
+
+         })
     } catch (error) {
-        console.error('Error occurred while trying to connect ngrok:', error);
+        console.error('Error occurred:', error);
     }
+}
+
+function promptKeyPress() {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    return new Promise(resolve => {
+        rl.question('', () => {
+            rl.close();
+            resolve(true);
+        });
+    });
 }
 
 main().catch(error => console.error('Error in main:', error));
