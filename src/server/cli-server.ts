@@ -36,6 +36,10 @@ export class CliServer {
     private setupRoutes() {
         this.app.use(express.json());
 
+        this.app.get('/', (req: Request, res: Response) => {
+            res.status(200).send('hello world');
+        })
+
         this.app.post('/run-commands', async (req: Request, res: Response) => {
             try {
                 const commandsResult = CommandSchema.array().safeParse(req.body);
